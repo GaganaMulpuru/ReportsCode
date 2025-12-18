@@ -1,0 +1,68 @@
+import sailpoint.object.EmailFileAttachment;
+import sailpoint.object.EmailOptions;
+import sailpoint.object.EmailTemplate;
+import sailpoint.object.Identity;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
+
+public void sendCsvAsAttachment(SailPointContext context, String identityName) throws Exception {
+
+    Connection conn = null;
+    PreparedStatement ps = null;
+    ResultSet rs = null;
+
+    try {
+        // 1️⃣ DB Connection
+        conn = context.getJdbcConnection("identityiq");
+
+        String query = "SELECT id, name, email FROM your_table";
+        ps = conn.prepareStatement(query);
+        rs = ps.executeQuery();
+
+        // 2️⃣ Build CSV in memory
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+        // Header
+        baos.write("ID,NAME,EMAIL\n".getBytes(StandardCharsets.UTF_8));
+
+        while (rs.next()) {
+            String row =
+                rs.getString("id") + "," +
+                rs.getString("name") + "," +
+                rs.getString("email") + "\n";
+
+            baos.write(row.getBytes(StandardCharsets.UTF_8));
+        }
+
+        byte[] csvData = baos.toByteArray();
+
+        // 3️⃣ Attachment
+        EmailFileAttachment attachment = new EmailFileAttachment(
+            "report.csv",
+            EmailFileAttachment.MimeType.MIME_CSV,
+            csvData
+        );
+
+        // 4️⃣ Email
+        Identity identity = context.getObjectByName(Identity.class, identityName);
+
+        EmailTemplate template = new EmailTemplate();
+        template.setSubject("CSV Export");
+        template.setBody("Hello,\n\nPlease find the attached CSV file.\n\nRegards");
+
+        EmailOptions options = new EmailOptions();
+        options.setTo(identity.getEmail());
+        options.addAttachment(attachment);
+
+        context.sendEmailNotification(template, options);
+
+    } finally {
+        if (rs != null) rs.close();
+        if (ps != null) ps.close();
+        if (conn != null) conn.close();
+    }
+}
