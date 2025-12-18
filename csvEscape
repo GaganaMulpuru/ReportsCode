@@ -1,0 +1,18 @@
+private String csvEscape(String value) {
+    if (value == null) {
+        return "";
+    }
+
+    boolean needsQuotes =
+        value.contains(",") ||
+        value.contains("\"") ||
+        value.contains("\n") ||
+        value.contains("\r");
+
+    if (needsQuotes) {
+        value = value.replace("\"", "\"\""); // escape quotes
+        value = "\"" + value + "\"";
+    }
+
+    return value;
+}
