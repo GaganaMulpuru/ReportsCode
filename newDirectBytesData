@@ -7,6 +7,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.io.ByteArrayOutputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import java.nio.charset.StandardCharsets;
 
 public void sendCsvAsAttachment(SailPointContext context, String identityName) throws Exception {
@@ -39,12 +41,24 @@ public void sendCsvAsAttachment(SailPointContext context, String identityName) t
         }
 
         byte[] csvData = baos.toByteArray();
+        ByteArrayOutputStream zipBaos = new ByteArrayOutputStream();
+        ZipOutputStream zipOut = new ZipOutputStream(zipBaos);
 
-        // 3️⃣ Attachment
+        ZipEntry entry = new ZipEntry("report.csv");
+        zipOut.putNextEntry(entry);
+        zipOut.write(csvBytes);
+        zipOut.closeEntry();
+        zipOut.close();
+
+        byte[] zipBytes = zipBaos.toByteArray();
+
+        /* =======================
+           4. Prepare Attachment
+           ======================= */
         EmailFileAttachment attachment = new EmailFileAttachment(
-            "report.csv",
-            EmailFileAttachment.MimeType.MIME_CSV,
-            csvData
+            "report.zip",
+            EmailFileAttachment.MimeType.MIME_ZIP,
+            zipBytes
         );
 
         // 4️⃣ Email
