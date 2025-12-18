@@ -1,0 +1,89 @@
+import sailpoint.api.SailPointContext;
+import sailpoint.object.EmailTemplate;
+import sailpoint.object.EmailOptions;
+import sailpoint.object.EmailFileAttachment;
+import sailpoint.object.Identity;
+import sailpoint.tools.Util;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.io.File;
+import java.io.FileWriter;
+import java.util.Date;
+import java.text.SimpleDateFormat;
+
+public String execute(SailPointContext context, String identityName) throws Exception {
+
+    Connection conn = null;
+    PreparedStatement ps = null;
+    ResultSet rs = null;
+    String filePath = null;
+
+    try {
+        // === 1. DB Query ===
+        conn = context.getJdbcConnection("identityiq"); // your IIQ DataSource
+
+        String query = "SELECT id, name, email FROM your_table";
+        ps = conn.prepareStatement(query);
+        rs = ps.executeQuery();
+
+        // === 2. Create CSV ===
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss");
+        String timestamp = sdf.format(new Date());
+        filePath = "/tmp/report_" + timestamp + ".csv"; // server filesystem
+        FileWriter writer = new FileWriter(filePath);
+
+        writer.append("ID,NAME,EMAIL\n");
+
+        while (rs.next()) {
+            writer.append(rs.getString("id")).append(",");
+            writer.append(rs.getString("name")).append(",");
+            writer.append(rs.getString("email")).append("\n");
+        }
+
+        writer.flush();
+        writer.close();
+
+        // === 3. Prepare File Attachment ===
+        byte[] fileData = Files.readAllBytes(Paths.get(filePath));
+        String fileName = new File(filePath).getName();
+
+        EmailFileAttachment attachment = new EmailFileAttachment(
+            fileName,
+            EmailFileAttachment.MimeType.MIME_CSV,
+            fileData
+        );
+
+        // === 4. Prepare Email ===
+        Identity identity = context.getObjectByName(Identity.class, identityName);
+        String toEmail = identity.getEmail();
+
+        EmailTemplate template = new EmailTemplate();
+        template.setSubject("Your Requested CSV Report");
+        template.setBody("Hello,\n\nPlease find the attached CSV report.\n\nRegards");
+
+        EmailOptions options = new EmailOptions();
+        options.setTo(toEmail);
+        options.addAttachment(attachment);
+
+        // === 5. Send the Email ===
+        context.sendEmailNotification(template, options);
+
+        return "Success: Email sent to " + toEmail;
+
+    } catch (Exception e) {
+        return "Error: " + e.getMessage();
+    } finally {
+        if (rs != null) rs.close();
+        if (ps != null) ps.close();
+        if (conn != null) conn.close();
+
+        if (filePath != null) {
+            File f = new File(filePath);
+            if (f.exists()) f.delete();
+        }
+    }
+}
