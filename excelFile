@@ -1,0 +1,110 @@
+import sailpoint.api.SailPointContext;
+import sailpoint.object.EmailFileAttachment;
+import sailpoint.object.EmailOptions;
+import sailpoint.object.EmailTemplate;
+import sailpoint.object.Identity;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+
+import java.io.ByteArrayOutputStream;
+
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
+public void sendExcelReport(SailPointContext context, String identityName) throws Exception {
+
+    Connection conn = null;
+    PreparedStatement ps = null;
+    ResultSet rs = null;
+
+    try {
+        /* =======================
+           1. DB Connection
+           ======================= */
+        conn = context.getJdbcConnection("identityiq");
+
+        String query = "SELECT id, name, email FROM your_table";
+        ps = conn.prepareStatement(query);
+        rs = ps.executeQuery();
+
+        /* =======================
+           2. Create Excel Workbook
+           ======================= */
+        Workbook workbook = new XSSFWorkbook();
+        Sheet sheet = workbook.createSheet("Report");
+
+        // Header style (bold)
+        CellStyle headerStyle = workbook.createCellStyle();
+        Font headerFont = workbook.createFont();
+        headerFont.setBold(true);
+        headerStyle.setFont(headerFont);
+
+        // Header row
+        Row header = sheet.createRow(0);
+        header.createCell(0).setCellValue("ID");
+        header.createCell(1).setCellValue("NAME");
+        header.createCell(2).setCellValue("EMAIL");
+
+        for (Cell cell : header) {
+            cell.setCellStyle(headerStyle);
+        }
+
+        /* =======================
+           3. Populate Data
+           ======================= */
+        int rowNum = 1;
+        while (rs.next()) {
+            Row row = sheet.createRow(rowNum++);
+
+            row.createCell(0).setCellValue(rs.getString("id"));
+            row.createCell(1).setCellValue(rs.getString("name"));
+            row.createCell(2).setCellValue(rs.getString("email"));
+        }
+
+        // Auto-size columns
+        for (int i = 0; i < 3; i++) {
+            sheet.autoSizeColumn(i);
+        }
+
+        /* =======================
+           4. Convert to byte[]
+           ======================= */
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        workbook.write(baos);
+        workbook.close();
+
+        byte[] excelBytes = baos.toByteArray();
+
+        /* =======================
+           5. Email Attachment
+           ======================= */
+        EmailFileAttachment attachment = new EmailFileAttachment(
+            "report.xlsx",
+            EmailFileAttachment.MimeType.MIME_XLSX,
+            excelBytes
+        );
+
+        Identity identity = context.getObjectByName(Identity.class, identityName);
+
+        EmailTemplate template = new EmailTemplate();
+        template.setSubject("Excel Report");
+        template.setBody(
+            "Hello,\n\n" +
+            "Please find the attached Excel report.\n\n" +
+            "Regards\nIAM Team"
+        );
+
+        EmailOptions options = new EmailOptions();
+        options.setTo(identity.getEmail());
+        options.addAttachment(attachment);
+
+        context.sendEmailNotification(template, options);
+
+    } finally {
+        if (rs != null) rs.close();
+        if (ps != null) ps.close();
+        if (conn != null) conn.close();
+    }
+}
