@@ -1,0 +1,131 @@
+package sailpoint.request;
+ 
+import java.util.Map;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.JoinPoint.StaticPart;
+import org.aspectj.runtime.reflect.Factory;
+import sailpoint.api.SailPointContext;
+import sailpoint.object.Attributes;
+import sailpoint.object.Request;
+import sailpoint.object.RequestDefinition;
+import sailpoint.object.Rule;
+import sailpoint.object.TaskItemDefinition;
+import sailpoint.tools.TracingAspect;
+ 
+public class RuleRequestExecutor extends AbstractRequestExecutor {
+	private static Log log;
+	public static final String DEFINITION_NAME = "Rule Request";
+	public static final String ARG_RULE = "RuleRequestExecutor.rule";
+	public static final String RULE_ARG_REQUEST = "request";
+ 
+	public RuleRequestExecutor() {
+		JoinPoint var1 = Factory.makeJP(ajc$tjp_0, this, this);
+ 
+		try {
+			ajc$sailpoint_tools_TracingAspect$localAspectOf().traceConstructorEntry(var1);
+			ajc$sailpoint_tools_TracingAspect$localAspectOf().traceConstructorExit(var1);
+		} catch (Throwable var3) {
+			ajc$sailpoint_tools_TracingAspect$localAspectOf().traceConstructorThrow(var1, var3);
+			throw var3;
+		}
+	}
+ 
+	public void execute(SailPointContext context, Request request, Attributes<String, Object> args)
+			throws RequestPermanentException, RequestTemporaryException {
+		StaticPart var10000 = ajc$tjp_1;
+		Object[] var9 = new Object[]{context, request, args};
+		JoinPoint var8 = Factory.makeJP(var10000, this, this, var9);
+ 
+		try {
+			ajc$sailpoint_tools_TracingAspect$localAspectOf().traceMethodEntry(var8);
+ 
+			try {
+				String ruleName = request.getString("RuleRequestExecutor.rule");
+				if (ruleName == null) {
+					ruleName = request.getDefinition().getString("RuleRequestExecutor.rule");
+				}
+ 
+				if (ruleName == null) {
+					log.error("No rule name passed");
+				} else {
+					Rule rule = (Rule) context.getObjectByName(Rule.class, ruleName);
+					if (rule == null) {
+						log.error(ruleName);
+					} else {
+						if (log.isInfoEnabled()) {
+							log.info(ruleName);
+						}
+ 
+						Attributes ruleArgs = new Attributes(args);
+						ruleArgs.remove("RuleRequestExecutor.rule");
+						ruleArgs.put("request", request);
+						Object result = context.runRule(rule, ruleArgs);
+						if (log.isInfoEnabled()) {
+							log.info(result);
+						}
+					}
+				}
+			} catch (Throwable var15) {
+				throw new RequestPermanentException(var15);
+			}
+ 
+			Object var13 = null;
+			ajc$sailpoint_tools_TracingAspect$localAspectOf().traceMethodExit(var8, var13);
+		} catch (Throwable var16) {
+			ajc$sailpoint_tools_TracingAspect$localAspectOf().traceMethodThrow(var8, var16);
+			throw var16;
+		}
+	}
+ 
+	public static void schedule(SailPointContext context, String defName, Map<String, Object> args) {
+		StaticPart var10000 = ajc$tjp_2;
+		Object[] var6 = new Object[]{context, defName, args};
+		JoinPoint var5 = Factory.makeJP(var10000, (Object) null, (Object) null, var6);
+ 
+		try {
+			ajc$sailpoint_tools_TracingAspect$localAspectOf().traceMethodEntry(var5);
+ 
+			try {
+				RequestDefinition def = (RequestDefinition) context.getObjectByName(RequestDefinition.class, defName);
+				if (def == null) {
+					log.error(defName);
+				} else {
+					Request req = new Request(def);
+					req.setAttributes((TaskItemDefinition) null, args);
+					context.saveObject(req);
+					context.commitTransaction();
+				}
+			} catch (Throwable var12) {
+				log.error("Unable to schedule request");
+				log.error(var12);
+			}
+ 
+			Object var10 = null;
+			ajc$sailpoint_tools_TracingAspect$localAspectOf().traceMethodExit(var5, var10);
+		} catch (Throwable var13) {
+			ajc$sailpoint_tools_TracingAspect$localAspectOf().traceMethodThrow(var5, var13);
+			throw var13;
+		}
+	}
+ 
+	static {
+		ajc$preClinit();
+		ajc$sailpoint_tools_TracingAspect$ptwAspectInstance = TracingAspect
+				.ajc$createAspectInstance("sailpoint.request.RuleRequestExecutor");
+ 
+		try {
+			log = LogFactory.getLog(RuleRequestExecutor.class);
+		} catch (Throwable var1) {
+			if (var1 instanceof ExceptionInInitializerError) {
+				throw (ExceptionInInitializerError) var1;
+			}
+ 
+			ajc$sailpoint_tools_TracingAspect$localAspectOf().initLogger(ajc$tjp_3);
+			throw var1;
+		}
+ 
+		ajc$sailpoint_tools_TracingAspect$localAspectOf().initLogger(ajc$tjp_3);
+	}
+}
