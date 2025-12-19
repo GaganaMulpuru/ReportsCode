@@ -1,0 +1,21 @@
+import sailpoint.object.Request;
+import sailpoint.object.RequestDefinition;
+
+Map args = new HashMap();
+args.put("identityName", "john.doe");
+
+// Get the built-in Rule Request definition
+RequestDefinition def =
+    context.getObjectByName(RequestDefinition.class, "Rule Request");
+
+if (def == null) {
+    throw new GeneralException("Rule Request definition not found");
+}
+
+// Create the request
+Request req = new Request(def);
+req.setAttributes(null, args);
+
+// Persist
+context.saveObject(req);
+context.commitTransaction();
